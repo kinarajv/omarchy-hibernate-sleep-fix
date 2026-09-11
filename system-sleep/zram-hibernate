@@ -1,0 +1,13 @@
+#!/bin/bash
+sleep_action=${SYSTEMD_SLEEP_ACTION:-$2}
+
+if [[ $sleep_action =~ ^(hibernate|hybrid-sleep)$ ]]; then
+  case $1 in
+    pre)
+      systemctl stop dev-zram0.swap
+      ;;
+    post)
+      systemctl start dev-zram0.swap
+      ;;
+  esac
+fi

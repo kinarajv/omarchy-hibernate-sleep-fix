@@ -1,0 +1,5 @@
+#!/bin/bash
+hyprctl dispatch "hl.dsp.dpms({ action = \"enable\" })" >/dev/null 2>&1 || true
+/usr/local/bin/omarchy-brightness-display on 2>/dev/null || brightnessctl -d '*' set 50% 2>/dev/null || true
+omarchy-brightness-keyboard restore 2>/dev/null || true
+omarchy-hyprland-monitor-clamshell >/dev/null 2>&1 || true

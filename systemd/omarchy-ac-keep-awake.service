@@ -1,0 +1,12 @@
+[Unit]
+Description=Keep system awake and on while plugged in
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/omarchy-ac-keep-awake
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=graphical-session.target
