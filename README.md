@@ -22,9 +22,51 @@ This repository bundles modular configuration files and drop-in services to solv
 | Issue | Technical Root Cause | Resolution |
 | :--- | :--- | :--- |
 | **Hibernation aborts (`-ENOMEM`)** | `/dev/zram0` (priority 100) traps anonymous memory in RAM during snapshot creation. | `system-sleep/zram-hibernate` disables zram before hibernation and restores it immediately upon resume. |
-| **30-second hibernation delay** | `image_size = 0` triggers aggressive cache thrashing before writing the image. | `tmpfiles.d/hibernation.conf` sets `/sys/power/image_size` to a safe 6 GB target and enables 8 compression threads. |
+| **30-second hibernation delay** | `image_size = 0` triggers aggressive cache thrashing before writing the image. | `tmpfiles.d/hibernation.conf` configures kernel image target to 40% RAM and activates parallel compression threads. |
 | **Black screen after wake** | DPMS remains disabled and backlight brightness is unasserted on compositor wake. | `bin/omarchy-system-wake` and `systemd/wake.conf` re-enable DPMS and restore display/keyboard brightness on unlock. |
 | **Sleep while plugged in** | Default `systemd-logind` suspends on lid close regardless of power source. | `logind.conf.d/30-plugged-in.conf` ignores lid switch on AC/dock, and `omarchy-ac-keep-awake` inhibits idle sleep. |
+
+---
+
+## Configuration Guide
+
+The installer automatically detects your CPU core count (`nproc`) and calculates safe kernel image sizes (~40% of total physical RAM). You can override any setting using `config.conf` or environment variables before running `./install.sh`.
+
+### Configuration Options Reference
+
+| Key | Environment Variable | Default Value | Description |
+| :--- | :--- | :--- | :--- |
+| `HIBERNATE_IMAGE_SIZE_GB` | `HIBERNATE_IMAGE_SIZE_GB` | `40% of RAM` (~6 GB) | Target hibernation snapshot size in gigabytes written to `/sys/power/image_size` |
+| `HIBERNATE_COMPRESSION_THREADS` | `HIBERNATE_COMPRESSION_THREADS` | `$(nproc)` | Number of parallel compression threads used by the kernel during memory snapshotting |
+| `DEFAULT_WAKE_BRIGHTNESS` | `DEFAULT_WAKE_BRIGHTNESS` | `"50%"` | Fallback brightness asserted on display wake if hardware backlight reports zero |
+| `IGNORE_LID_SWITCH_ON_AC` | `IGNORE_LID_SWITCH_ON_AC` | `"yes"` | Set to `"yes"` or `"true"` to keep system awake when lid is closed on external power |
+
+---
+
+### Customizing Configuration
+
+To customize parameters before installation:
+
+1. Copy the example configuration file:
+   ```bash
+   cp config.example.conf config.conf
+   ```
+2. Edit your preferred values:
+   ```ini
+   HIBERNATE_IMAGE_SIZE_GB=8
+   HIBERNATE_COMPRESSION_THREADS=12
+   DEFAULT_WAKE_BRIGHTNESS=60%
+   IGNORE_LID_SWITCH_ON_AC=yes
+   ```
+3. Run the installer:
+   ```bash
+   sudo ./install.sh
+   ```
+
+Or pass environment variables inline without creating a file:
+```bash
+sudo HIBERNATE_IMAGE_SIZE_GB=8 HIBERNATE_COMPRESSION_THREADS=8 ./install.sh
+```
 
 ---
 
@@ -42,6 +84,7 @@ omarchy-hibernate-sleep-fix/
 ├── systemd/
 │   ├── omarchy-ac-keep-awake.service # User systemd unit for AC idle inhibition
 │   └── wake.conf                     # Drop-in for omarchy-sleep-lock.service
+├── config.example.conf               # Sample configuration template
 ├── install.sh                        # Automated system and user unit installation script
 ├── uninstall.sh                      # Clean revert script
 └── README.md
@@ -51,7 +94,6 @@ omarchy-hibernate-sleep-fix/
 
 ## Installation
 
-### Automatic Install
 Run the installation script with `sudo`:
 
 ```bash
@@ -78,10 +120,6 @@ Confirm the optimized image size and compression threads are loaded:
 cat /sys/power/image_size
 cat /sys/power/hibernate_compression_threads
 ```
-
-Expected values:
-- `image_size`: `6032873881` (~6 GB)
-- `hibernate_compression_threads`: `8` (or matching your CPU core count)
 
 ### 2. Verify ZRAM Sleep Hook
 Simulate the pre-hibernate action:

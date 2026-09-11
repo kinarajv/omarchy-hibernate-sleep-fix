@@ -11,15 +11,41 @@ fi
 REAL_USER="${SUDO_USER:-$USER}"
 USER_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 
+if [[ -f "$SCRIPT_DIR/config.conf" ]]; then
+  source "$SCRIPT_DIR/config.conf"
+fi
+
+THREADS="${HIBERNATE_COMPRESSION_THREADS:-$(nproc 2>/dev/null || echo 4)}"
+
+if [[ -n "${HIBERNATE_IMAGE_SIZE_GB:-}" ]]; then
+  IMAGE_SIZE_BYTES=$(( HIBERNATE_IMAGE_SIZE_GB * 1024 * 1024 * 1024 ))
+else
+  TOTAL_MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+  IMAGE_SIZE_BYTES=$(( TOTAL_MEM_KB * 1024 * 4 / 10 ))
+fi
+
+WAKE_BRIGHTNESS="${DEFAULT_WAKE_BRIGHTNESS:-50%}"
+IGNORE_LID="${IGNORE_LID_SWITCH_ON_AC:-yes}"
+
 install -d -m 755 /etc/systemd/system-sleep
 install -m 755 "$SCRIPT_DIR/system-sleep/zram-hibernate" /etc/systemd/system-sleep/zram-hibernate
 
 install -d -m 755 /etc/tmpfiles.d
-install -m 644 "$SCRIPT_DIR/tmpfiles.d/hibernation.conf" /etc/tmpfiles.d/hibernation.conf
+cat <<EOF > /etc/tmpfiles.d/hibernation.conf
+w /sys/power/hibernate_compression_threads - - - - $THREADS
+w /sys/power/image_size - - - - $IMAGE_SIZE_BYTES
+EOF
 systemd-tmpfiles --create /etc/tmpfiles.d/hibernation.conf 2>/dev/null || true
 
-install -d -m 755 /etc/systemd/logind.conf.d
-install -m 644 "$SCRIPT_DIR/logind.conf.d/30-plugged-in.conf" /etc/systemd/logind.conf.d/30-plugged-in.conf
+install -d -m 755 /etc/omarchy
+cat <<EOF > /etc/omarchy/wake.conf
+DEFAULT_WAKE_BRIGHTNESS="$WAKE_BRIGHTNESS"
+EOF
+
+if [[ "$IGNORE_LID" =~ ^(yes|true|1)$ ]]; then
+  install -d -m 755 /etc/systemd/logind.conf.d
+  install -m 644 "$SCRIPT_DIR/logind.conf.d/30-plugged-in.conf" /etc/systemd/logind.conf.d/30-plugged-in.conf
+fi
 
 install -d -m 755 /usr/local/bin
 install -m 755 "$SCRIPT_DIR/bin/omarchy-system-wake" /usr/local/bin/omarchy-system-wake
@@ -41,4 +67,7 @@ if [[ -d "/run/user/$(id -u "$REAL_USER")" ]]; then
   sudo -u "$REAL_USER" XDG_RUNTIME_DIR="/run/user/$USER_ID" systemctl --user enable --now omarchy-ac-keep-awake.service 2>/dev/null || true
 fi
 
-echo "Installation complete. Hibernate, wake, and AC keep-awake optimizations installed."
+echo "Installation complete."
+echo "Hibernation compression threads: $THREADS"
+echo "Hibernation target image size: $IMAGE_SIZE_BYTES bytes (~$(( IMAGE_SIZE_BYTES / 1024 / 1024 / 1024 )) GB)"
+echo "Wake default brightness: $WAKE_BRIGHTNESS"

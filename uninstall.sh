@@ -17,6 +17,7 @@ fi
 rm -f /etc/systemd/system-sleep/zram-hibernate
 rm -f /etc/tmpfiles.d/hibernation.conf
 rm -f /etc/systemd/logind.conf.d/30-plugged-in.conf
+rm -f /etc/omarchy/wake.conf
 rm -f /usr/local/bin/omarchy-system-wake
 rm -f "$USER_HOME/.local/bin/omarchy-ac-keep-awake"
 rm -f "$USER_HOME/.config/systemd/user/omarchy-sleep-lock.service.d/wake.conf"
