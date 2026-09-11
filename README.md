@@ -55,7 +55,7 @@ omarchy-hibernate-sleep-fix/
 Run the installation script with `sudo`:
 
 ```bash
-git clone https://github.com/<your-username>/omarchy-hibernate-sleep-fix.git
+git clone https://github.com/kinarajv/omarchy-hibernate-sleep-fix.git
 cd omarchy-hibernate-sleep-fix
 sudo ./install.sh
 ```
